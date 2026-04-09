@@ -1,4 +1,4 @@
-scripts := "scripts/porep-market"
+scripts := "scripts/porep-market/setup"
 
 # build docker images and start devnet
 up:
