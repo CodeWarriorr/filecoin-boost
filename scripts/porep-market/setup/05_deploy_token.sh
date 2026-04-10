@@ -26,14 +26,12 @@ echo "$DEPLOY_OUTPUT" | grep -q "ONCHAIN EXECUTION COMPLETE & SUCCESSFUL" || { e
 USDC_TOKEN=$(echo "$DEPLOY_OUTPUT" | grep "USDC_DEPLOYED_TO=" | tail -1 | sed 's/.*USDC_DEPLOYED_TO=//' | tr -d '[:space:]')
 [ -n "$USDC_TOKEN" ] && [ "$USDC_TOKEN" != "null" ] || { echo "ERROR: could not extract USDC address"; exit 1; }
 echo "  MockUSDC: $USDC_TOKEN"
+require_code_at "$USDC_TOKEN" "MockUSDC"
 update_env "USDC_TOKEN" "$USDC_TOKEN"
-wait_for_tx
 
 MINT_AMOUNT=1000000000000  # 1M USDC (1e12 with 6 decimals)
 echo "Minting $MINT_AMOUNT to deployer..."
-cast send --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-    "$USDC_TOKEN" "mint(address,uint256)" "$DEPLOYER" "$MINT_AMOUNT"
-wait_for_tx
+csend "$USDC_TOKEN" "mint(address,uint256)" "$DEPLOYER" "$MINT_AMOUNT"
 
 BALANCE=$(cast call --rpc-url "$RPC_URL" "$USDC_TOKEN" "balanceOf(address)(uint256)" "$DEPLOYER")
 echo "  Deployer USDC balance: $BALANCE"

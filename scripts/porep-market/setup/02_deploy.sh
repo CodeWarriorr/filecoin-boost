@@ -22,9 +22,10 @@ if [ -d "$FILPAY_DIR" ]; then
     FILPAY_ADDR=$(forge create src/FilecoinPayV1.sol:FilecoinPayV1 \
         --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
         --broadcast --json 2>/dev/null | jq -r '.deployedTo')
+    [ -n "$FILPAY_ADDR" ] && [ "$FILPAY_ADDR" != "null" ] || { echo "ERROR: FilecoinPay deploy failed"; exit 1; }
+    require_code_at "$FILPAY_ADDR" "FilecoinPay"
     echo "FilecoinPay: $FILPAY_ADDR"
     update_env "FILECOIN_PAY" "$FILPAY_ADDR"
-    wait_for_tx
 else
     echo "WARN: filecoin-pay not cloned, using deployer as placeholder"
     FILPAY_ADDR="$DEPLOYER"
@@ -41,8 +42,8 @@ if [ -z "${META_ALLOCATOR:-}" ] || [ "$_meta_code" = "0x" ]; then
         --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
         --broadcast --json 2>/dev/null | jq -r '.deployedTo')
     [ -n "$ALLOC_IMPL" ] && [ "$ALLOC_IMPL" != "null" ] || { echo "ERROR: Allocator deploy failed"; exit 1; }
+    require_code_at "$ALLOC_IMPL" "Allocator"
     echo "  Allocator impl: $ALLOC_IMPL"
-    wait_for_tx
 
     FACTORY=$(forge create src/Factory.sol:Factory \
         --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
@@ -50,17 +51,15 @@ if [ -z "${META_ALLOCATOR:-}" ] || [ "$_meta_code" = "0x" ]; then
         --constructor-args "$DEPLOYER" "$ALLOC_IMPL" \
         2>/dev/null | jq -r '.deployedTo')
     [ -n "$FACTORY" ] && [ "$FACTORY" != "null" ] || { echo "ERROR: Factory deploy failed"; exit 1; }
+    require_code_at "$FACTORY" "Allocator factory"
     echo "  Factory: $FACTORY"
-    wait_for_tx
 
-    DEPLOY_HASH=$(cast send --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-        --json "$FACTORY" 'deploy(address)' "$DEPLOYER" 2>/dev/null | jq -r '.transactionHash // empty')
-    [ -n "$DEPLOY_HASH" ] || { echo "ERROR: factory deploy() tx submission failed"; exit 1; }
-    wait_for_tx "$DEPLOY_HASH"
+    csend "$FACTORY" 'deploy(address)' "$DEPLOYER"
 
     META_ALLOCATOR=$(cast call --rpc-url "$RPC_URL" "$FACTORY" 'contracts(uint256)(address)' 0)
     echo "  MetaAllocator proxy: $META_ALLOCATOR"
     [ -n "$META_ALLOCATOR" ] && [ "$META_ALLOCATOR" != "0x0000000000000000000000000000000000000000" ] || { echo "ERROR: MetaAllocator address is zero"; exit 1; }
+    require_code_at "$META_ALLOCATOR" "MetaAllocator"
 
     update_env "META_ALLOCATOR" "$META_ALLOCATOR"
     update_env "ALLOCATOR_FACTORY" "$FACTORY"

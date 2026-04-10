@@ -17,14 +17,6 @@ echo "Method:   modifyRailPayment(uint256)"
 echo "Validator: $VALIDATOR"
 echo "Rail ID:  $RAIL_ID"
 
-cast send \
-    --rpc-url "$RPC_URL" \
-    --private-key "$PRIVATE_KEY_TEST" \
-    --gas-limit 9000000000 \
-    "$VALIDATOR" \
-    "modifyRailPayment(uint256)" \
-    "$RAIL_ID"
-
-wait_for_tx
+csend "$VALIDATOR" "modifyRailPayment(uint256)" "$RAIL_ID"
 
 echo "Done."

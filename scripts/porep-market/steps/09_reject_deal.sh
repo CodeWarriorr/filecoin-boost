@@ -24,13 +24,6 @@ echo "DealId: $DEAL_ID"
 # --------------------------
 # SEND TRANSACTION
 # --------------------------
-cast send \
-  --rpc-url "$RPC_URL" \
-  --private-key "$PRIVATE_KEY_TEST" \
-  "$POREP_MARKET" \
-  "rejectDeal(uint256)" \
-  "$DEAL_ID"
-
-wait_for_tx
+csend "$POREP_MARKET" "rejectDeal(uint256)" "$DEAL_ID"
 
 echo "Deal rejected successfully!"
