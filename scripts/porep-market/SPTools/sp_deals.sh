@@ -114,13 +114,13 @@ print_deal() {
 # Fetch and display all deals for a given state
 # $1 = state number (0/1/2), $2 = state label
 show_section() {
-  local state_num="$1" state_name="$2"
+  local state_num="$1" state_name="$2" state_hint="${3:-}"
   local section_line
   section_line="$(printf '═%.0s' {1..60})"
 
   echo ""
   echo "$section_line"
-  printf "  %s Deals\n" "$state_name"
+  [ -n "$state_hint" ] && printf "  %s Deals — %s\n" "$state_name" "$state_hint" || printf "  %s Deals\n" "$state_name"
   echo "$section_line"
 
   local raw
@@ -161,9 +161,9 @@ printf "  Market:       %s\n" "$POREP_MARKET"
 printf "  Organization: %s\n" "$ORGANIZATION"
 printf "  Client SC:    %s\n" "$CLIENT_CONTRACT"
 
-show_section 0 "Proposed"
-show_section 1 "Accepted"
-show_section 2 "Completed"
+show_section 0 "Proposed" "awaiting SP acceptance"
+show_section 1 "Accepted" "waiting for client to make allocation"
+show_section 2 "Completed" "allocation done"
 
 echo ""
 echo "══════════════════════════════════════════════════════════════"
