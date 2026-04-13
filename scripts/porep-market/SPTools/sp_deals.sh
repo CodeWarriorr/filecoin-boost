@@ -163,7 +163,7 @@ printf "  Client SC:    %s\n" "$CLIENT_CONTRACT"
 
 show_section 0 "Proposed" "awaiting SP acceptance"
 show_section 1 "Accepted" "waiting for client to make allocation"
-show_section 2 "Completed" "allocation done"
+show_section 2 "Completed" "allocation ready for sealing"
 
 echo ""
 echo "══════════════════════════════════════════════════════════════"
