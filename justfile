@@ -1,16 +1,17 @@
 scripts := "scripts/porep-market/setup"
 
-# build docker images and start devnet
-up:
+build:
     make clean docker/all
-    make devnet/up
 
-# start devnet (images already built)
+up: build start
+
 start:
     make devnet/up
 
 stop:
     make devnet/down
+
+down: stop
 
 # deploy porep-market contracts to running devnet
 deploy:
@@ -20,7 +21,7 @@ deploy:
     bash {{scripts}}/03_deploy_allocator_and_grant_dc.sh
     bash {{scripts}}/04_register_miner.sh
     bash {{scripts}}/05_deploy_token.sh
-    bash {{scripts}}/06_setup_sli.sh
+    bash {{scripts}}/06_prepare_operator.sh
 
 
 deposit-and-approve-operator DEAL_ID AMOUNT="1000":

@@ -4,8 +4,10 @@ Setup and deploy [porep-market](https://github.com/fidlabs/porep-market) contrac
 
 ## Prerequisites
 
-- Foundry (`forge`, `cast`)
-- Node.js (for `steps/sign_permit.js`)
+- [Foundry](https://www.getfoundry.sh/) (`forge`, `cast`)
+- [Rust](https://rust-lang.org/) (`cargo`)
+- [Node.js >= v20](https://nodejs.org/) (for `steps/sign_permit.js`)
+- [Go](https://go.dev/) (`go`)
 - Running devnet (`make devnet/up` from repo root)
 - `jq`, `xxd`, `python3`
 

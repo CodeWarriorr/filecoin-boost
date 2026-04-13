@@ -19,6 +19,8 @@ FILPAY_DIR="$SCRIPT_DIR/filecoin-pay"
 if [ -d "$FILPAY_DIR" ]; then
     echo "Deploying FilecoinPay..."
     cd "$FILPAY_DIR"
+
+    declare FILPAY_ADDR
     FILPAY_ADDR=$(forge create src/FilecoinPayV1.sol:FilecoinPayV1 \
         --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
         --broadcast --json 2>/dev/null | jq -r '.deployedTo')
@@ -38,6 +40,7 @@ if [ -z "${META_ALLOCATOR:-}" ] || [ "$_meta_code" = "0x" ]; then
     echo "Deploying MetaAllocator..."
     cd "$METAALLOC_DIR"
 
+    declare ALLOC_IMPL
     ALLOC_IMPL=$(forge create src/Allocator.sol:Allocator \
         --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
         --broadcast --json 2>/dev/null | jq -r '.deployedTo')
@@ -45,6 +48,7 @@ if [ -z "${META_ALLOCATOR:-}" ] || [ "$_meta_code" = "0x" ]; then
     require_code_at "$ALLOC_IMPL" "Allocator"
     echo "  Allocator impl: $ALLOC_IMPL"
 
+    declare FACTORY
     FACTORY=$(forge create src/Factory.sol:Factory \
         --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
         --broadcast --json \
@@ -56,6 +60,7 @@ if [ -z "${META_ALLOCATOR:-}" ] || [ "$_meta_code" = "0x" ]; then
 
     csend "$FACTORY" 'deploy(address)' "$DEPLOYER"
 
+    declare META_ALLOCATOR
     META_ALLOCATOR=$(cast call --rpc-url "$RPC_URL" "$FACTORY" 'contracts(uint256)(address)' 0)
     echo "  MetaAllocator proxy: $META_ALLOCATOR"
     [ -n "$META_ALLOCATOR" ] && [ "$META_ALLOCATOR" != "0x0000000000000000000000000000000000000000" ] || { echo "ERROR: MetaAllocator address is zero"; exit 1; }

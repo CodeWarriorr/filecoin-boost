@@ -5,7 +5,8 @@ SETUP="$SCRIPT_DIR/../setup"
 STEPS="$SCRIPT_DIR/../steps"
 source "$SCRIPT_DIR/../setup/_common.sh"
 
-STATE_FILE="/tmp/porep-happy-path-$$.state"
+STATE_FILE=${1:-"/tmp/porep-happy-path-$$.state"}
+STATE_FILE=$(realpath "$STATE_FILE")
 export STATE_FILE
 echo "State: $STATE_FILE"
 
