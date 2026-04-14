@@ -49,17 +49,13 @@ echo "  MaxUint256=$MAX_UINT256"
 echo "  Token=$USDC_TOKEN  FilecoinPay=$FILECOIN_PAY  Validator=$VALIDATOR_ADDR"
 echo "  Amount=$DEPOSIT_AMOUNT  Deadline=$PERMIT_DEADLINE  Permit sig: v=$V r=$R s=$S"
 
-RECEIPT=$(cast send \
-  --gas-limit 9000000000 \
-  --private-key "$PRIVATE_KEY_TEST" \
-  --rpc-url "$RPC_URL" \
+RECEIPT=$(send_tx_output \
   "$FILECOIN_PAY" \
   "depositWithPermitAndApproveOperator(address,address,uint256,uint256,uint8,bytes32,bytes32,address,uint256,uint256,uint256)" \
-  "$USDC_TOKEN" "$CLIENT_ADDR" "$DEPOSIT_AMOUNT" "$PERMIT_DEADLINE" "$V" "$R" "$S" "$VALIDATOR_ADDR" "$MAX_UINT256" "$MAX_UINT256" "$MAX_UINT256" \
-  --json)
+  "$USDC_TOKEN" "$CLIENT_ADDR" "$DEPOSIT_AMOUNT" "$PERMIT_DEADLINE" "$V" "$R" "$S" "$VALIDATOR_ADDR" "$MAX_UINT256" "$MAX_UINT256" "$MAX_UINT256")
 
-TX_HASH=$(echo "$RECEIPT" | jq -r '.transactionHash')
-STATUS=$(echo "$RECEIPT"  | jq -r '.status')
+TX_HASH=$(extract_tx_hash "$RECEIPT")
+STATUS=$(extract_status "$RECEIPT")
 
 if [ "$STATUS" != "0x1" ]; then
     echo "ERROR: transaction reverted with status $STATUS" >&2

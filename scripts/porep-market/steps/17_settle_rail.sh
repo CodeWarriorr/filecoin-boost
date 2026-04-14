@@ -22,15 +22,11 @@ echo "Until epoch:  $UNTIL_EPOCH"
 SP_BEFORE=$(ccall "$FILECOIN_PAY" "accounts(address,address)(uint256,uint256,uint256,uint256)" \
     "$USDC_TOKEN" "$SP_WALLET" 2>/dev/null | head -1 | sed 's/[()]//g' | awk '{print $1}')
 
-TX_HASH=$(cast send \
-  $FILECOIN_PAY \
+TX_HASH=$(send_tx_hash \
+  "$FILECOIN_PAY" \
   "settleRail(uint256,uint256)" \
-  $RAIL_ID \
-  $UNTIL_EPOCH \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY_TEST \
-  --gas-limit 9000000000 \
-  --json | jq -r '.transactionHash')
+  "$RAIL_ID" \
+  "$UNTIL_EPOCH")
 
 echo "Transaction: $TX_HASH"
 wait_for_tx "$TX_HASH"
