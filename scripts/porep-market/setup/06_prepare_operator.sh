@@ -71,5 +71,6 @@ fi
 state_set DEPLOYER "$DEPLOYER"
 state_set SP_WALLET "$SP_WALLET"
 state_set MINER_ID "$MINER_ID"
+update_env "ORGANIZATION" "$DEPLOYER"
 
 echo "=== Operator ready ==="
