@@ -41,14 +41,10 @@ echo "  Client ERC-20: $CLIENT_ERC20_BEFORE   FilecoinPay: $CLIENT_FP_BEFORE"
 echo
 echo "Sending withdraw transaction..."
 
-TX_HASH=$(cast send \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY_SP \
-  --gas-limit 9000000000 \
-  $FILECOIN_PAY \
+TX_HASH=$(SENDER_KEY="$PRIVATE_KEY_SP" send_tx_hash \
+  "$FILECOIN_PAY" \
   "withdraw(address,uint256)" \
-  "$USDC_TOKEN" "$AMOUNT" \
-  --json | jq -r '.transactionHash')
+  "$USDC_TOKEN" "$AMOUNT")
 
 wait_for_tx "$TX_HASH"
 

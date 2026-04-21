@@ -9,10 +9,13 @@ require_env CLIENT_CONTRACT
 DEPLOYER=$(cast wallet address "$PRIVATE_KEY_TEST")
 echo "Deployer: $DEPLOYER"
 
-# Genesis root key holders must be present — lost if lotus container was recreated
-WALLET_LIST=$(docker exec lotus lotus wallet list 2>/dev/null)
-echo "$WALLET_LIST" | grep -q "t0100" || { echo "ERROR: t0100 not in lotus wallet — devnet genesis keys missing. Run 'make devnet/down && make devnet/up' to reset."; exit 1; }
-echo "$WALLET_LIST" | grep -q "t0101" || { echo "ERROR: t0101 not in lotus wallet — devnet genesis keys missing. Run 'make devnet/down && make devnet/up' to reset."; exit 1; }
+# Genesis root key holders must be present — lost if devnet data was not fully wiped on reset
+ROOT_KEY_1=$(docker exec lotus cat /var/lib/lotus/rootkey-1 2>/dev/null | tr -d '\r\n')
+ROOT_KEY_2=$(docker exec lotus cat /var/lib/lotus/rootkey-2 2>/dev/null | tr -d '\r\n')
+[ -n "$ROOT_KEY_1" ] || { echo "ERROR: rootkey-1 not found in lotus container — is devnet fully initialized?"; exit 1; }
+[ -n "$ROOT_KEY_2" ] || { echo "ERROR: rootkey-2 not found in lotus container — is devnet fully initialized?"; exit 1; }
+docker exec lotus lotus wallet list 2>/dev/null | grep -q "$ROOT_KEY_1" || { echo "ERROR: root key $ROOT_KEY_1 not in lotus wallet — stale devnet data. Run 'make devnet/down && make devnet/up' to reset."; exit 1; }
+docker exec lotus lotus wallet list 2>/dev/null | grep -q "$ROOT_KEY_2" || { echo "ERROR: root key $ROOT_KEY_2 not in lotus wallet — stale devnet data. Run 'make devnet/down && make devnet/up' to reset."; exit 1; }
 
 # Fund deployer (idempotent)
 docker exec lotus lotus send "$DEPLOYER" 10000 2>/dev/null || true
@@ -65,19 +68,13 @@ docker exec lotus lotus filplus list-notaries
 # ============================================================
 echo "=== Phase 2: Grant allowance to deployer on MetaAllocator ==="
 
-cast send --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-    "$META_ALLOCATOR" 'addAllowance(address,uint256)' \
-    "$DEPLOYER" 999999999999999999
-wait_for_tx
+csend "$META_ALLOCATOR" 'addAllowance(address,uint256)' "$DEPLOYER" 999999999999999999
 
 echo "  Deployer allowance: $(cast call --rpc-url "$RPC_URL" \
     "$META_ALLOCATOR" 'allowance(address)(uint256)' "$DEPLOYER")"
 
 echo "Granting allowance to Client contract on MetaAllocator..."
-cast send --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-    "$META_ALLOCATOR" 'addAllowance(address,uint256)' \
-    "$CLIENT_CONTRACT" 999999999999999999
-wait_for_tx
+csend "$META_ALLOCATOR" 'addAllowance(address,uint256)' "$CLIENT_CONTRACT" 999999999999999999
 
 echo "  Client allowance: $(cast call --rpc-url "$RPC_URL" \
     "$META_ALLOCATOR" 'allowance(address)(uint256)' "$CLIENT_CONTRACT")"
@@ -92,10 +89,7 @@ CLIENT_LOWER=$(echo "$CLIENT_CONTRACT" | tr '[:upper:]' '[:lower:]')
 CLIENT_FIL_BYTES="0x040a${CLIENT_LOWER#0x}"
 echo "  Client f4 bytes: $CLIENT_FIL_BYTES"
 
-cast send --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-    "$META_ALLOCATOR" 'addVerifiedClient(bytes,uint256)' \
-    "$CLIENT_FIL_BYTES" 99999999999999
-wait_for_tx
+csend "$META_ALLOCATOR" 'addVerifiedClient(bytes,uint256)' "$CLIENT_FIL_BYTES" 99999999999999
 
 CLIENT_FIL_ADDR=$(docker exec lotus lotus evm stat "$CLIENT_CONTRACT" \
     | awk '/Filecoin address:/{print $3}' | tr -d '\r\n')

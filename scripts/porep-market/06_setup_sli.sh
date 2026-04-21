@@ -18,10 +18,7 @@ MINERS=(
 for m in "${MINERS[@]}"; do
     read -r id retr bw lat idx <<< "$m"
     echo "Setting SLI for miner $id (retr=${retr}bps bw=${bw}mbps lat=${lat}ms idx=${idx}%)"
-    cast send --gas-limit 9000000000 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-        "$SLI_ORACLE" "setSLI(uint64,(uint16,uint16,uint16,uint8))" \
-        "$id" "($retr,$bw,$lat,$idx)"
-    wait_for_tx
+    csend "$SLI_ORACLE" "setSLI(uint64,(uint16,uint16,uint16,uint8))" "$id" "($retr,$bw,$lat,$idx)"
 done
 
 echo "Done."

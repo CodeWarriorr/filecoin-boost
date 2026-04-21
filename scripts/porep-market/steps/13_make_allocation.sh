@@ -25,8 +25,7 @@ CALLDATA=$(PROVIDER="$PROVIDER" PIECE_SIZE="$PIECE_SIZE" DEAL_ID="$DEAL_ID" DEAL
 
 [ -n "$CALLDATA" ] || { echo "ERROR: Failed to compute transfer calldata"; exit 1; }
 
-TX_HASH=$(cast send --gas-limit 9000000000 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
-    "$CLIENT_CONTRACT" "$CALLDATA" --json 2>/dev/null | jq -r '.transactionHash // empty')
+TX_HASH=$(send_tx_hash "$CLIENT_CONTRACT" "$CALLDATA")
 [ -n "$TX_HASH" ] || { echo "ERROR: Client.transfer() tx returned no hash"; exit 1; }
 wait_for_tx "$TX_HASH"
 echo "  DataCap transferred"

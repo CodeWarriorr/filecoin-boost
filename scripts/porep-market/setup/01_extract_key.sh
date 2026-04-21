@@ -11,8 +11,6 @@ EXPORTED=$(docker exec lotus lotus wallet export "$DEFAULT_WALLET" | tr -d '\r\n
 
 # lotus exports base64 with type prefix byte — strip it, keep 32-byte key
 PRIVATE_KEY=$(echo "$EXPORTED" | base64 -d | tail -c 32 | xxd -p -c 64)
-echo "Private key: 0x${PRIVATE_KEY}"
-
 update_env "PRIVATE_KEY_TEST" "0x${PRIVATE_KEY}"
 
 DERIVED_ADDR=$(cast wallet address "0x${PRIVATE_KEY}" 2>/dev/null || echo "cast failed")

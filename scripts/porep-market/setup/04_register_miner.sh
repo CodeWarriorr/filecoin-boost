@@ -24,20 +24,16 @@ register_miner() {
     local avail=$(( gb * 1024 * 1024 * 1024 ))
 
     echo "Registering miner $id (retr=${retr}bps bw=${bw}mbps lat=${lat}ms idx=${idx}%)"
-    cast send \
-        --gas-limit 9000000000 \
-        --private-key "$PRIVATE_KEY_TEST" \
-        --rpc-url "$RPC_URL" \
+    csend \
         "$SP_REGISTRY" \
         "registerProviderFor(uint64,address,(uint16,uint16,uint16,uint8),uint256,uint256,address,uint32,uint32)" \
         "$id" "$DEPLOYER" "($retr,$bw,$lat,$idx)" "$avail" "$price" "$DEPLOYER" "$MIN_DEAL_DURATION_DAYS" "$MAX_DEAL_DURATION_DAYS"
-
-    wait_for_tx
 
     local registered
     registered=$(cast call --rpc-url "$RPC_URL" "$SP_REGISTRY" \
         "isProviderRegistered(uint64)(bool)" "$id" 2>/dev/null || echo "?")
     echo "  registered: $registered"
+    [ "$registered" = "true" ] || { echo "ERROR: miner $id was not registered"; exit 1; }
 }
 
 for m in "${MINERS[@]}"; do

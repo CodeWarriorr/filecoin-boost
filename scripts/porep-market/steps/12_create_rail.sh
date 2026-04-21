@@ -27,13 +27,10 @@ echo "Sender:    $DEPLOYER"
 # --------------------------
 # SEND TRANSACTION
 # --------------------------
-TX_HASH=$(cast send \
-  --rpc-url "$RPC_URL" \
-  --private-key "$PRIVATE_KEY_TEST" \
+TX_HASH=$(send_tx_hash \
   "$VALIDATOR" \
   "createRail(address)" \
-  "$USDC_TOKEN" \
-  --json | jq -r '.transactionHash')
+  "$USDC_TOKEN")
 
 wait_for_tx "$TX_HASH"
 

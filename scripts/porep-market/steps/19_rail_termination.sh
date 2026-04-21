@@ -19,14 +19,11 @@ echo "Caller:   $VALIDATOR"
 echo "Rail ID:  $RAIL_ID"
 echo ""
 
-cast send \
-    --rpc-url "$RPC_URL" \
-    --private-key "$PRIVATE_KEY_TEST" \
-    --gas-limit 9000000000 \
+TX_HASH=$(send_tx_hash \
     "$VALIDATOR" \
     "terminateRail(uint256)" \
-    "$RAIL_ID"
+    "$RAIL_ID")
 
-wait_for_tx
+wait_for_tx "$TX_HASH"
 
 echo "Done."

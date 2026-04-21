@@ -14,8 +14,8 @@ PRICE_TOKENS=${3:?price tokens required}
 DURATION_DAYS=${4:?durationDays required}
 
 DEAL_SIZE_BYTES=2048
-LATENCY_MS=0
-INDEXING_PCT=0
+LATENCY_MS="${LATENCY_MS:-0}"
+INDEXING_PCT="${INDEXING_PCT:-0}"
 DECIMALS=6
 MANIFEST="https://example.com/manifest.json"
 
@@ -23,15 +23,12 @@ MANIFEST="https://example.com/manifest.json"
 
 echo "Proposing deal..."
 
-TX_HASH=$(cast send \
-  --rpc-url "$RPC_URL" \
-  --private-key "$PRIVATE_KEY_TEST" \
+TX_HASH=$(send_tx_hash \
   "$POREP_MARKET" \
   "proposeDeal((uint16,uint16,uint16,uint8),(uint256,uint256,uint32),string)" \
   "($RETRIEVABILITY_BPS,$BANDWIDTH_MBPS,$LATENCY_MS,$INDEXING_PCT)" \
   "($DEAL_SIZE_BYTES,$PRICE_TOKENS,$DURATION_DAYS)" \
-  "$MANIFEST" \
-  --json | jq -r '.transactionHash')
+  "$MANIFEST")
 
 echo "TX: $TX_HASH"
 
@@ -39,7 +36,7 @@ wait_for_tx "$TX_HASH"
 
 echo "Reading receipt..."
 
-RECEIPT=$(cast receipt "$TX_HASH" --rpc-url "$RPC_URL" --json)
+RECEIPT=$(receipt_json "$TX_HASH")
 
 # topic0 = keccak("DealProposalCreated(...)")
 EVENT_SIG=$(cast keccak "DealProposalCreated(uint256,address,uint64,(uint16,uint16,uint16,uint8),string,uint256)")

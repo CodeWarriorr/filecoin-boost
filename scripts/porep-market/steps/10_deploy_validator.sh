@@ -25,15 +25,12 @@ echo "DealId:  $DEAL_ID"
 # SEND TX
 # --------------------------
 
-TX=$(cast send \
-  --json \
-  --rpc-url "$RPC_URL" \
-  --private-key "$PRIVATE_KEY_TEST" \
+TX=$(send_tx_output \
   "$VALIDATOR_FACTORY" \
   "create(uint256)" \
   "$DEAL_ID")
 
-TX_HASH=$(echo "$TX" | jq -r '.transactionHash')
+TX_HASH=$(extract_tx_hash "$TX")
 wait_for_tx "$TX_HASH"
 
 echo "Transaction sent"
@@ -42,11 +39,11 @@ echo "Transaction sent"
 # EXTRACT VALIDATOR ADDRESS
 # --------------------------
 
-VALIDATOR=$(echo "$TX" | jq -r '
-.logs[]
-| select(.topics[0] == "0x6c6ffd7df9a0cfaa14ee2cf752003968de6c340564276242aa48ca641b09bce4")
-| .topics[1]
-' | sed 's/^0x000000000000000000000000/0x/')
+VALIDATOR=$(cast call \
+  --rpc-url "$RPC_URL" \
+  "$VALIDATOR_FACTORY" \
+  "getInstance(uint256)(address)" \
+  "$DEAL_ID" | head -1)
 
 echo "Validator address: $VALIDATOR"
 state_set VALIDATOR "$VALIDATOR"
