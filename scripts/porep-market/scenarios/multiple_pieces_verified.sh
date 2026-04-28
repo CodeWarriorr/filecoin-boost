@@ -157,8 +157,8 @@ assert_eq "$SP_FP_WITHDRAW_DELTA" "$((-PAID_AMOUNT))" "SP FilecoinPay balance sh
 
 echo "--- Negative path: re-allocating completed deal should revert ---"
 NEG_CALLDATA=$(cd "$POREP_DIR" && PROVIDER="$PROVIDER" DEAL_ID="$DEAL_ID" DEAL_COMPLETED=true \
-    PIECE_CID_HEXES="$PIECE_CID_HEXES" PIECE_SIZES="$PIECE_SIZES" \
-    forge script "$SCRIPT_DIR/../mocks/ComputeMultiTransferCalldata.s.sol" \
+    PIECE_CID_HEX="${MULTI_PIECE_CID_HEXES[0]}" PIECE_SIZE="${MULTI_PIECE_SIZES[0]}" \
+    forge script "$SCRIPT_DIR/../mocks/ComputeTransferCalldata.s.sol" \
     --rpc-url "$RPC_URL" 2>&1 | grep "CALLDATA=" | sed 's/.*CALLDATA=//')
 [ -n "$NEG_CALLDATA" ] || fail "could not compute negative-path calldata"
 NEG_TX=$(cast send "$CLIENT_CONTRACT" "$NEG_CALLDATA" \
