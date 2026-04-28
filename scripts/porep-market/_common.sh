@@ -83,6 +83,21 @@ wait_for_tx() {
     return 1
 }
 
+wait_for_block() {
+    local target_block="${1:-}"
+    local current_block
+    if [ -z "$target_block" ]; then
+        echo "ERROR: target block required" >&2
+        return 1
+    fi
+    current_block=$(cast block-number --rpc-url "$RPC_URL" 2>/dev/null)
+    while [ "$current_block" -lt "$target_block" ]; do
+        echo "  [wait_for_block] still waiting for ${target_block} (${current_block} / ${target_block})" >&2
+        sleep 5
+        current_block=$(cast block-number --rpc-url "$RPC_URL" 2>/dev/null)
+    done
+}
+
 # --- State file management ---
 STATE_FILE="${STATE_FILE:-$POREP_MARKET_ROOT/.state}"
 

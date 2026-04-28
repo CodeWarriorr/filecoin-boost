@@ -32,3 +32,12 @@ END_EPOCH=
 
 # set by: settle_rail.sh
 PAID_AMOUNT=
+
+# set by: terminate_rail.sh
+TERMINATION_BLOCK=
+TERMINATION_END_EPOCH=
+TERMINATION_TX_HASH=
+
+# set by: settle_rail_after_termination.sh
+PAID_AMOUNT_AFTER_TERMINATION=
+EXTRA_SETTLE_DELTA=

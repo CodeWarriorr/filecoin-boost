@@ -25,7 +25,7 @@ bash "$STEPS/12_create_rail.sh";                    state_require RAIL_ID
 bash "$STEPS/13_make_allocation.sh"
 bash "$SETUP/08_ensure_boost.sh"
 bash "$STEPS/14_import_piece.sh"
-CLAIM_MAX_ATTEMPTS=60 bash "$STEPS/16_wait_for_claim.sh"
+CLAIM_MAX_ATTEMPTS="${CLAIM_MAX_ATTEMPTS:-900}" bash "$STEPS/16_wait_for_claim.sh"
 
 END_EPOCH_OFFSET=500 MIN_INTERVAL=1 SETTLE_WAIT=5 \
     bash "$STEPS/20_activate_payment.sh"
@@ -36,17 +36,17 @@ state_require DEAL_ID VALIDATOR RAIL_ID DEPLOYER SP_WALLET
 DEAL_VALIDATOR=$(get_deal_field "$DEAL_ID" 11)
 DEAL_STATE_BEFORE=$(get_deal_field "$DEAL_ID" 12)
 DEAL_RAIL_ID=$(get_deal_field "$DEAL_ID" 13)
-RAIL_RATE=$(rail_payment_rate "$RAIL_ID")
+RAIL_RATE_ACTUAL=$(rail_payment_rate "$RAIL_ID")
 LOCKUP_PERIOD=86400
-FULL_DURATION_MAX=$((RAIL_RATE * 500))
+FULL_DURATION_MAX=$((RAIL_RATE_ACTUAL * 500))
 
 assert_eq "$(canon_addr "$DEAL_VALIDATOR")" "$(canon_addr "$VALIDATOR")" "deal validator mismatch before termination"
 assert_eq "$DEAL_STATE_BEFORE" "2" "deal should be Completed before termination"
 assert_eq "$DEAL_RAIL_ID" "$RAIL_ID" "deal railId mismatch before termination"
-assert_gt "$RAIL_RATE" 0 "rail payment rate should be positive before termination"
+assert_gt "$RAIL_RATE_ACTUAL" 0 "rail payment rate should be positive before termination"
 
-echo "Rail rate:         $RAIL_RATE units/epoch"
-echo "Full duration max: $FULL_DURATION_MAX units (rate × 500 epochs)"
+echo "Rail rate:         $RAIL_RATE_ACTUAL units/epoch"
+echo "Full duration max: $FULL_DURATION_MAX units (rate x 500 epochs)"
 
 echo "Waiting 60s to accumulate pre-termination payment..."
 sleep 60
@@ -121,7 +121,7 @@ echo "Deal state after terminate: $DEAL_STATE_AFTER_TERM (Terminated)"
 echo "Deal state final:           $DEAL_STATE_FINAL (Terminated)"
 echo "Validator:                  $VALIDATOR"
 echo "Rail ID:                    $RAIL_ID"
-echo "Rail rate:                  $RAIL_RATE attoUSDC/epoch"
+echo "Rail rate:                  $RAIL_RATE_ACTUAL attoUSDC/epoch"
 echo "settledUpTo before term:    $LAST_SETTLED_BEFORE_TERM"
 echo "settledUpTo after term:     $LAST_SETTLED_AFTER_TERM"
 echo "endEpoch before term:       $END_EPOCH_BEFORE"
