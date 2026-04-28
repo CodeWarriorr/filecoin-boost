@@ -39,7 +39,7 @@ echo "Reading receipt..."
 RECEIPT=$(receipt_json "$TX_HASH")
 
 # topic0 = keccak("DealProposalCreated(...)")
-EVENT_SIG=$(cast keccak "DealProposalCreated(uint256,address,uint64,(uint16,uint16,uint16,uint8),string,uint256)")
+EVENT_SIG=$(cast keccak "DealProposalCreated(uint256,address,uint64,(uint16,uint16,uint16,uint8),string,uint256,uint256)")
 
 DEAL_ID=$(echo "$RECEIPT" | jq -r --arg sig "$EVENT_SIG" '
 .logs[]
@@ -58,7 +58,7 @@ echo "Fetching deal proposal..."
 RESULT=$(cast call \
   --rpc-url "$RPC_URL" \
   "$POREP_MARKET" \
-  "getDealProposal(uint256)((uint256,address,uint64,(uint16,uint16,uint16,uint8),(uint256,uint256,uint32),address,uint8,uint256,string))" \
+  "getDealProposal(uint256)((uint256,address,uint64,(uint16,uint16,uint16,uint8),(uint256,uint256,uint32),address,uint8,uint256,uint256,string))" \
   "$DEAL_ID")
 
 # remove parentheses
@@ -68,7 +68,7 @@ RESULT=$(echo "$RESULT" | tr -d '()')
 IFS=',' read -r DEAL_ID CLIENT PROVIDER \
 REQ_RETR REQ_BW REQ_LAT REQ_IDX \
 TERM_SIZE TERM_PRICE TERM_DURATION \
-VALIDATOR STATE RAIL_ID MANIFEST <<< "$RESULT"
+VALIDATOR STATE RAIL_ID PROPOSED_AT_BLOCK MANIFEST <<< "$RESULT"
 
 STATE=$(echo "$STATE" | xargs)
 
@@ -102,4 +102,5 @@ echo ""
 echo "validator:          $VALIDATOR"
 echo "state:              $STATE ($STATE_NAME)"
 echo "railId:             $RAIL_ID"
+echo "proposedAtBlock:    $PROPOSED_AT_BLOCK"
 echo "manifestLocation:   $MANIFEST"

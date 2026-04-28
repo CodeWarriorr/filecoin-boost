@@ -1,6 +1,7 @@
 porep-market/
 filecoin-pay/
 contract-metaallocator/
+filecoin-porep-market-tooling/
 *.log
 .env
 .state

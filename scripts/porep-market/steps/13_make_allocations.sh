@@ -21,17 +21,40 @@ echo "  Provider:    $PROVIDER"
 echo "  Piece count: $PIECE_COUNT"
 
 cd "$POREP_DIR"
-CALLDATA=$(PROVIDER="$PROVIDER" DEAL_ID="$DEAL_ID" DEAL_COMPLETED=true \
-    PIECE_CID_HEXES="$PIECE_CID_HEXES" PIECE_SIZES="$PIECE_SIZES" \
-    forge script "$SCRIPT_DIR/../mocks/ComputeMultiTransferCalldata.s.sol" \
-    --rpc-url "$RPC_URL" 2>&1 | grep "CALLDATA=" | sed 's/.*CALLDATA=//')
+IFS='|' read -r -a PIECE_CID_HEX_ARRAY <<< "$PIECE_CID_HEXES"
+IFS='|' read -r -a PIECE_SIZE_ARRAY <<< "$PIECE_SIZES"
 
-[ -n "$CALLDATA" ] || { echo "ERROR: Failed to compute multi-allocation transfer calldata"; exit 1; }
+[ "${#PIECE_CID_HEX_ARRAY[@]}" -eq "$PIECE_COUNT" ] || {
+    echo "ERROR: piece CID count mismatch (expected $PIECE_COUNT, got ${#PIECE_CID_HEX_ARRAY[@]})"
+    exit 1
+}
+[ "${#PIECE_SIZE_ARRAY[@]}" -eq "$PIECE_COUNT" ] || {
+    echo "ERROR: piece size count mismatch (expected $PIECE_COUNT, got ${#PIECE_SIZE_ARRAY[@]})"
+    exit 1
+}
 
-TX_HASH=$(send_tx_hash "$CLIENT_CONTRACT" "$CALLDATA")
-[ -n "$TX_HASH" ] || { echo "ERROR: Client.transfer() tx returned no hash"; exit 1; }
-wait_for_tx "$TX_HASH"
-echo "  DataCap transferred"
+for idx in "${!PIECE_CID_HEX_ARRAY[@]}"; do
+    piece_num=$((idx + 1))
+    deal_completed=false
+    if [ "$piece_num" -eq "$PIECE_COUNT" ]; then
+        deal_completed=true
+    fi
+
+    CALLDATA=$(PROVIDER="$PROVIDER" DEAL_ID="$DEAL_ID" DEAL_COMPLETED="$deal_completed" \
+        PIECE_CID_HEX="${PIECE_CID_HEX_ARRAY[$idx]}" PIECE_SIZE="${PIECE_SIZE_ARRAY[$idx]}" \
+        forge script "$SCRIPT_DIR/../mocks/ComputeTransferCalldata.s.sol" \
+        --rpc-url "$RPC_URL" 2>&1 | grep "CALLDATA=" | sed 's/.*CALLDATA=//')
+
+    [ -n "$CALLDATA" ] || {
+        echo "ERROR: Failed to compute allocation transfer calldata for piece $piece_num"
+        exit 1
+    }
+
+    TX_HASH=$(send_tx_hash "$CLIENT_CONTRACT" "$CALLDATA")
+    [ -n "$TX_HASH" ] || { echo "ERROR: Client.transfer() tx returned no hash for piece $piece_num"; exit 1; }
+    wait_for_tx "$TX_HASH"
+    echo "  DataCap transferred for piece $piece_num/$PIECE_COUNT"
+done
 
 DEAL_STATE=$(get_deal_field "$DEAL_ID" 12)
 if [ "$DEAL_STATE" != "2" ]; then

@@ -13,7 +13,7 @@ echo "============================================================"
 echo "  MULTIPLE PIECES VERIFIED: one deal, many allocations"
 echo "============================================================"
 
-PIECE_COUNT="${PIECE_COUNT:-2}"
+PIECE_COUNT="${PIECE_COUNT:-3}"
 PRICE_TOKENS="${PRICE_TOKENS:-2000000}"
 DURATION_DAYS="${DURATION_DAYS:-360}"
 
@@ -69,7 +69,7 @@ bash "$STEPS/13_make_allocations.sh"
 [ "${SKIP_SETUP:-}" = "1" ] || bash "$SETUP/08_ensure_boost.sh"
 
 state_load
-state_require ALLOC_IDS_CSV ALLOC_COUNT DEAL_ID VALIDATOR RAIL_ID DEPLOYER SP_WALLET
+state_require ALLOC_IDS_CSV ALLOC_COUNT DEAL_ID VALIDATOR RAIL_ID DEPLOYER SP_WALLET CLIENT_CONTRACT
 
 IFS=',' read -r -a ALLOC_IDS <<< "$ALLOC_IDS_CSV"
 [ "${#ALLOC_IDS[@]}" -eq "$PIECE_COUNT" ] || fail "expected $PIECE_COUNT allocation IDs, got ${#ALLOC_IDS[@]}"
@@ -136,6 +136,11 @@ assert_eq "$SP_DELTA" "$PAID_AMOUNT" "SP FilecoinPay delta should equal PAID_AMO
 assert_eq "$ACTUAL_FEE" "$EXPECTED_FEE" "protocol fee mismatch after settlement"
 [ "$SETTLEMENT" -ge "$((EXPECTED_GROSS - ACTIVE_RAIL_RATE))" ] || fail "gross settlement under expected range (gross=$SETTLEMENT expected>=$((EXPECTED_GROSS - ACTIVE_RAIL_RATE)))"
 [ "$SETTLEMENT" -le "$((EXPECTED_GROSS + ACTIVE_RAIL_RATE))" ] || fail "gross settlement over expected range (gross=$SETTLEMENT expected<=$((EXPECTED_GROSS + ACTIVE_RAIL_RATE)))"
+POST_SETTLE_ALLOC_IDS_CSV=$(ccall "$CLIENT_CONTRACT" \
+    "getClientAllocationIdsPerDeal(uint256)(uint64[])" "$DEAL_ID" 2>/dev/null | tr -d '[] ')
+[ -n "$POST_SETTLE_ALLOC_IDS_CSV" ] || fail "could not re-query allocation IDs after settlement"
+assert_eq "$POST_SETTLE_ALLOC_IDS_CSV" "$ALLOC_IDS_CSV" \
+    "allocation IDs should be unchanged after settlement"
 
 SP_ERC20_BEFORE_WITHDRAW=$(erc20_balance "$SP_WALLET")
 bash "$STEPS/18_withdraw_payments.sh" "$PAID_AMOUNT"
@@ -149,6 +154,17 @@ SP_FP_WITHDRAW_DELTA=$((SP_FP_AFTER_WITHDRAW - SP_FP_AFTER_SETTLE))
 assert_eq "$DEAL_STATE_AFTER_WITHDRAW" "2" "deal should remain Completed after withdraw"
 assert_eq "$SP_ERC20_DELTA" "$PAID_AMOUNT" "SP ERC-20 balance delta should equal withdrawn amount"
 assert_eq "$SP_FP_WITHDRAW_DELTA" "$((-PAID_AMOUNT))" "SP FilecoinPay balance should decrease by withdrawn amount"
+
+echo "--- Negative path: re-allocating completed deal should revert ---"
+NEG_CALLDATA=$(cd "$POREP_DIR" && PROVIDER="$PROVIDER" DEAL_ID="$DEAL_ID" DEAL_COMPLETED=true \
+    PIECE_CID_HEX="${MULTI_PIECE_CID_HEXES[0]}" PIECE_SIZE="${MULTI_PIECE_SIZES[0]}" \
+    forge script "$SCRIPT_DIR/../mocks/ComputeTransferCalldata.s.sol" \
+    --rpc-url "$RPC_URL" 2>&1 | grep "CALLDATA=" | sed 's/.*CALLDATA=//')
+[ -n "$NEG_CALLDATA" ] || fail "could not compute negative-path calldata"
+NEG_TX=$(cast send "$CLIENT_CONTRACT" "$NEG_CALLDATA" \
+    --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY_TEST" \
+    --gas-limit 9000000000 --json 2>/dev/null | jq -r '.transactionHash // empty')
+assert_tx_reverted "$NEG_TX" "re-allocating a completed deal should revert"
 
 echo ""
 echo "============================================================"
@@ -169,5 +185,7 @@ for idx in "${!ALLOC_IDS[@]}"; do
     echo "Piece[$idx]:           ${MULTI_PIECE_CIDS[$idx]} -> alloc ${ALLOC_IDS[$idx]}"
 done
 echo ""
-echo "RESULT: Verified one deal can register, claim, and settle multiple pieces in one allocation flow."
+echo "RESULT: Verified one deal can register, claim, settle, and re-verify multiple pieces in one allocation flow."
+echo "        Post-settlement allocation IDs: stable."
+echo "        Negative path (re-allocate completed deal): correctly reverts."
 echo "============================================================"
