@@ -296,7 +296,7 @@ devnet/%:
 	docker compose -f ./docker/devnet/docker-compose.yaml up --build $* -d
 
 devnet/down:
-	docker compose -f ./docker/devnet/docker-compose.yaml down --rmi=local
+	docker compose -f ./docker/devnet/docker-compose.yaml down -v --rmi=local
 	sleep 2
 	docker run --rm -v "$(CURDIR)/docker/devnet/data:/data" alpine sh -c "rm -rf /data/*" 2>/dev/null || rm -rf ./docker/devnet/data
 

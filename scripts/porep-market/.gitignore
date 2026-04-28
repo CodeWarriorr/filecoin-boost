@@ -8,3 +8,4 @@ filecoin-porep-market-tooling/
 ts/node_modules/
 ts/dist/
 steps/node_modules/
+steps/validators.json
