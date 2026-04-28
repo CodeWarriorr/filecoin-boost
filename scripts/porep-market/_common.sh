@@ -258,7 +258,7 @@ get_deal_field() {
     decoded=$(decode_eth_call_json \
         "$POREP_MARKET" \
         "getDealProposal(uint256)" \
-        "getDealProposal(uint256)((uint256,address,uint64,(uint16,uint16,uint16,uint8),(uint256,uint256,uint32),address,uint8,uint256,string))" \
+        "getDealProposal(uint256)((uint256,address,uint64,(uint16,uint16,uint16,uint8),(uint256,uint256,uint32),address,uint8,uint256,uint256,string))" \
         "$deal_id")
     case "$field" in
         1) jq_path='.[0][0]' ;;
@@ -275,6 +275,7 @@ get_deal_field() {
         12) jq_path='.[0][6]' ;;
         13) jq_path='.[0][7]' ;;
         14) jq_path='.[0][8]' ;;
+        15) jq_path='.[0][9]' ;;
         *) echo "ERROR: unsupported deal field index $field" >&2; return 1 ;;
     esac
     printf '%s\n' "$decoded" | jq -r "$jq_path"
