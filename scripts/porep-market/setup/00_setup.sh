@@ -47,4 +47,26 @@ cd "$METAALLOC_DIR"
 forge install 2>/dev/null || true
 forge build
 
+# filecoin-porep-market-tooling (Python CLI used by integration scenarios)
+POREP_TOOLING_REPO="${POREP_TOOLING_REPO:-https://github.com/pingwindyktator/filecoin-porep-market-tooling.git}"
+POREP_TOOLING_BRANCH="${POREP_TOOLING_BRANCH:-master}"
+
+if [ -d "$POREP_TOOLING_DIR/.git" ]; then
+    if [ -n "$(git -C "$POREP_TOOLING_DIR" status --porcelain)" ]; then
+        echo "ERROR: filecoin-porep-market-tooling checkout has local changes: $POREP_TOOLING_DIR" >&2
+        echo "Commit, stash, or remove them before updating." >&2
+        exit 1
+    fi
+    echo "filecoin-porep-market-tooling already cloned, pulling $POREP_TOOLING_BRANCH..."
+    git -C "$POREP_TOOLING_DIR" fetch origin
+    git -C "$POREP_TOOLING_DIR" checkout "$POREP_TOOLING_BRANCH"
+    git -C "$POREP_TOOLING_DIR" pull --ff-only origin "$POREP_TOOLING_BRANCH"
+else
+    echo "Cloning filecoin-porep-market-tooling ($POREP_TOOLING_BRANCH)..."
+    git clone --branch "$POREP_TOOLING_BRANCH" "$POREP_TOOLING_REPO" "$POREP_TOOLING_DIR"
+fi
+
+python3 -m venv "$POREP_TOOLING_DIR/.venv"
+"$POREP_TOOLING_DIR/.venv/bin/pip" install -r "$POREP_TOOLING_DIR/requirements.txt"
+
 echo "Done."

@@ -4,6 +4,7 @@ SCRIPT_DIR="${SCRIPT_DIR:-$POREP_MARKET_ROOT}"
 ENV_FILE="$POREP_MARKET_ROOT/.env"
 POREP_DIR="$POREP_MARKET_ROOT/porep-market"
 METAALLOC_DIR="$POREP_MARKET_ROOT/contract-metaallocator"
+POREP_TOOLING_DIR="$POREP_MARKET_ROOT/filecoin-porep-market-tooling"
 
 _safe_source_kvfile() {
     local file="$1"
