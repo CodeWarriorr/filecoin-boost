@@ -88,7 +88,7 @@ done
 
 for alloc_id in "${ALLOC_IDS[@]}"; do
     state_set ALLOC_ID "$alloc_id"
-    CLAIM_MAX_ATTEMPTS=60 bash "$STEPS/16_wait_for_claim.sh"
+    CLAIM_MAX_ATTEMPTS="${CLAIM_MAX_ATTEMPTS:-900}" bash "$STEPS/16_wait_for_claim.sh"
 done
 
 END_EPOCH_OFFSET=500 MIN_INTERVAL=1 SETTLE_WAIT=5 \

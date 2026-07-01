@@ -34,13 +34,13 @@ state_require DEAL_ID VALIDATOR RAIL_ID DEPLOYER SP_WALLET
 DEAL_VALIDATOR=$(get_deal_field "$DEAL_ID" 11)
 DEAL_STATE_BEFORE_SETTLE=$(get_deal_field "$DEAL_ID" 12)
 DEAL_RAIL_ID=$(get_deal_field "$DEAL_ID" 13)
-RAIL_RATE=$(rail_payment_rate "$RAIL_ID")
+RAIL_RATE_ACTUAL=$(rail_payment_rate "$RAIL_ID")
 RAIL_SETTLED_START=$(rail_settled_up_to "$RAIL_ID")
 
 assert_eq "$(canon_addr "$DEAL_VALIDATOR")" "$(canon_addr "$VALIDATOR")" "deal validator mismatch"
 assert_eq "$DEAL_RAIL_ID" "$RAIL_ID" "deal railId mismatch"
 assert_eq "$DEAL_STATE_BEFORE_SETTLE" "2" "deal should be Completed before settlement"
-assert_gt "$RAIL_RATE" 0 "rail payment rate should be positive after activation"
+assert_gt "$RAIL_RATE_ACTUAL" 0 "rail payment rate should be positive after activation"
 
 CLIENT_FP_BEFORE_SETTLE=$(fp_balance "$DEPLOYER")
 SP_FP_BEFORE_SETTLE=$(fp_balance "$SP_WALLET")
@@ -85,7 +85,7 @@ echo "Deal ID:              $DEAL_ID"
 echo "Deal state:           $DEAL_STATE_AFTER_WITHDRAW (Completed)"
 echo "Validator:            $VALIDATOR"
 echo "Rail ID:              $RAIL_ID"
-echo "Rail rate:            $RAIL_RATE attoUSDC/epoch"
+echo "Rail rate:            $RAIL_RATE_ACTUAL attoUSDC/epoch"
 echo "Settled epochs:       $RAIL_SETTLED_START -> $RAIL_SETTLED_END"
 echo "Client FP delta:      $CLIENT_DELTA"
 echo "SP FP delta:          +$SP_DELTA"

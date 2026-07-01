@@ -44,7 +44,7 @@ bash "$STEPS/12_create_rail.sh"; state_require RAIL_ID
 bash "$STEPS/13_make_allocation.sh"
 [ "${SKIP_SETUP:-}" = "1" ] || bash "$SETUP/08_ensure_boost.sh"
 bash "$STEPS/14_import_piece.sh"
-CLAIM_MAX_ATTEMPTS=60 bash "$STEPS/16_wait_for_claim.sh"
+CLAIM_MAX_ATTEMPTS="${CLAIM_MAX_ATTEMPTS:-900}" bash "$STEPS/16_wait_for_claim.sh"
 
 state_load
 state_require DEAL_ID RAIL_ID VALIDATOR SP_WALLET MINER_ID

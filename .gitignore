@@ -26,6 +26,7 @@ localnet.json
 lotus-daemon.log
 lotus-miner.log
 .devcontainer/
+.omx/
 .env
 scripts/porep-market/.env
 scripts/porep-market/node_modules/
