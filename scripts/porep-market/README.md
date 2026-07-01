@@ -1,73 +1,98 @@
 # PoRep Market Devnet Scripts
 
-Setup and deploy [porep-market](https://github.com/fidlabs/porep-market) contracts on boost devnet.
+Setup and test PoRep Market contracts on the Boost devnet.
+
+The versioned entry points are:
+
+- `v1/` - deprecated maintenance scripts for PoRep Market branch `v1`.
+- `v2/` - current scripts for PoRep Market branch `main`.
+- `shared/` - environment, state, transaction, and getter helpers used by both versions.
+
+The legacy top-level `setup/`, `steps/`, and `scenarios/` directories are kept for compatibility. New work should use the versioned paths or the `just` targets.
+
+## Configuration
+
+Copy `env.example` to `.env` and set the private keys needed by your local devnet. Do not commit `.env`.
+
+Version and checkout keys:
+
+```bash
+POREP_MARKET_VERSION=v2
+POREP_MARKET_BRANCH=
+POREP_MARKET_V1_BRANCH=v1
+POREP_MARKET_V2_BRANCH=main
+POREP_MARKET_DIR=
+```
+
+`POREP_MARKET_BRANCH` is an explicit override. Leave it empty to use `POREP_MARKET_V1_BRANCH` or `POREP_MARKET_V2_BRANCH` based on `POREP_MARKET_VERSION`.
+
+`POREP_MARKET_DIR` can point at a local sibling checkout or worktree. Leave it empty to use a version-specific script checkout: `scripts/porep-market/porep-market-v1` for V1 or `scripts/porep-market/porep-market-v2` for V2.
+
+Version-specific deployed address keys:
+
+```bash
+CLIENT_CONTRACT=              # V1 only
+DATACAP_EVIDENCE_ADAPTER=     # V2 only
+```
+
+## V2
+
+V2 is the default target. Current `../2_porep_market/main` supports:
+
+- deploy output extraction for `DataCapEvidenceAdapter`
+- bounded `DataCapEvidenceAdapter.submitEvidenceBatch()` ABI coverage
+- provider registration through `SPRegistry.registerProviderFor(uint64,address,(uint16,uint64,uint16,uint8),uint256,uint256,address,uint32,uint32)`
+- `PoRepMarket.proposeDeal((bytes32,uint256,uint256,string,address,uint32,(uint16,uint64,uint16,uint8)))`
+- split deal getters: `getDeal`, `getDealData`, `getDealTerms`, `getDealCapacity`, `getDealPayment`, and `getDealSLIs`
+- accepted-state assertion with V2 state code `20`
+
+Run the lightweight checks:
+
+```bash
+just porep-script-check
+```
+
+Run the V2 setup/deploy/proposal smoke against a running devnet:
+
+```bash
+just porep-v2-deploy
+just porep-v2-proposal-smoke
+just porep-v2-validator-rail-smoke
+```
+
+The V2 full happy path is intentionally blocked in:
+
+```bash
+just porep-v2-full-happy-path
+```
+
+That script exits `2` and names the blocker: current `DataCapEvidenceAdapter.submitEvidenceBatch()` is present, but `activateEvidence`, `refreshEvidenceStatus`, and `currentEvidenceStatus` still return dummy zero values and are marked for future implementation in the contract.
+
+## V1
+
+V1 remains runnable under the maintenance surface:
+
+```bash
+just porep-v1-deploy
+just porep-v1-happy-path
+```
+
+V1 keeps the old `Client` allocation path, old tuple-shaped `proposeDeal`, `acceptDeal`, compact state assertions, and `getDealProposal` decoding. It should run against PoRep Market branch `v1` unless `POREP_MARKET_BRANCH` is set.
 
 ## Prerequisites
 
-- [Foundry](https://www.getfoundry.sh/) (`forge`, `cast`)
-- [Rust](https://rust-lang.org/) (`cargo`)
-- [Node.js >= v20](https://nodejs.org/) (for `steps/sign_permit.js`)
-- [Go](https://go.dev/) (`go`)
+- Foundry (`forge`, `cast`)
+- Rust (`cargo`)
+- Node.js >= v20
+- Go
 - Running devnet (`make devnet/up` from repo root)
 - `jq`, `xxd`, `python3`
-
-## One-time setup
-
-Run once after a fresh devnet (idempotent — safe to re-run after a restart):
-
-```bash
-bash setup/00_setup.sh                        # clone repos, build contracts
-bash setup/01_extract_key.sh                  # extract PRIVATE_KEY_TEST, generate PRIVATE_KEY_SP → .env
-bash setup/02_deploy.sh                       # deploy FilecoinPay, SPRegistry, ValidatorFactory, PoRepMarket, Client → .env
-bash setup/03_deploy_allocator_and_grant_dc.sh # register MetaAllocator as verifier, grant datacap to Client
-bash setup/04_register_miner.sh               # register test miners in SPRegistry
-bash setup/05_deploy_token.sh                 # deploy MockUSDC, mint to deployer → .env
-bash 06_setup_sli.sh                          # seed SLI oracle attestations
-```
-
-Config in `.env` (copy from `env.example` if it doesn't exist).
-
-## Running the happy path
-
-Run the full deal lifecycle end-to-end:
-
-```bash
-bash scenarios/happy_path.sh
-```
-
-This runs every step in order:
-`Proposed → Accepted → Validator → Rail → Allocated → Claimed → Settled → Withdrawn`
-
-Each step writes its outputs to a temporary state file so the next step can read them.
-
-### Running steps individually
-
-Steps live under `setup/` (one-time config) and `steps/` (deal lifecycle).
-Each step reads from and writes to `.state`.
-
-Start a fresh run:
-
-```bash
-cp state.example .state
-```
-
-To resume after a failure, re-run the failed step — `.state` already has values from previous steps.
-
-### Required env
-
-Both `PRIVATE_KEY_TEST` (client/deployer) and `PRIVATE_KEY_SP` (storage provider) must be set in `.env`.
-`PRIVATE_KEY_SP` is needed by `steps/18_withdraw_payments.sh` to withdraw earned funds from the SP's FilecoinPay account.
 
 ## Troubleshooting
 
 ```bash
-# check devnet
 docker exec lotus lotus chain head
-
-# check deploy logs
-cat deploy_output.log
-
-# check RPC
+cat scripts/porep-market/v2/setup/deploy_output.log
 curl -s -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
   http://127.0.0.1:1234/rpc/v1

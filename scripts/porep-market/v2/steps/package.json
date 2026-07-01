@@ -1,0 +1,7 @@
+{
+  "name": "porep-market",
+  "type": "module",
+  "dependencies": {
+    "ethers": "^6.0.0"
+  }
+}
