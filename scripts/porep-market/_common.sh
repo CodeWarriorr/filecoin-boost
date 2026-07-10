@@ -268,33 +268,83 @@ ccall() {
     cast call --rpc-url "$RPC_URL" "$@"
 }
 
+json_tuple_field() {
+    local json="$1" index="$2"
+    printf '%s\n' "$json" | jq -r --argjson i "$index" '
+        if (.[0] | type) == "array" then
+            .[0][$i]
+        elif (.[0] | type) == "string" then
+            .[0] | sub("^\\("; "") | sub("\\)$"; "") | split(", ")[$i]
+        else
+            empty
+        end
+    '
+}
+
 get_deal_field() {
     local deal_id="$1" field="$2"
-    local decoded jq_path
-    decoded=$(decode_eth_call_json \
-        "$POREP_MARKET" \
-        "getDealProposal(uint256)" \
-        "getDealProposal(uint256)((uint256,address,uint64,(uint16,uint16,uint16,uint8),(uint256,uint256,uint32),address,uint8,uint256,uint256,string))" \
-        "$deal_id")
+    local decoded tuple_index
+
     case "$field" in
-        1) jq_path='.[0][0]' ;;
-        2) jq_path='.[0][1]' ;;
-        3) jq_path='.[0][2]' ;;
-        4) jq_path='.[0][3][0]' ;;
-        5) jq_path='.[0][3][1]' ;;
-        6) jq_path='.[0][3][2]' ;;
-        7) jq_path='.[0][3][3]' ;;
-        8) jq_path='.[0][4][0]' ;;
-        9) jq_path='.[0][4][1]' ;;
-        10) jq_path='.[0][4][2]' ;;
-        11) jq_path='.[0][5]' ;;
-        12) jq_path='.[0][6]' ;;
-        13) jq_path='.[0][7]' ;;
-        14) jq_path='.[0][8]' ;;
-        15) jq_path='.[0][9]' ;;
+        1|2|3|11|12|13)
+            decoded=$(decode_eth_call_json \
+                "$POREP_MARKET" \
+                "getDeal(uint256)" \
+                "getDeal(uint256)((uint256,address,uint64,uint256,uint8,address,address,uint256))" \
+                "$deal_id")
+            case "$field" in
+                1) tuple_index=0 ;;
+                2) tuple_index=1 ;;
+                3) tuple_index=2 ;;
+                11) tuple_index=6 ;;
+                12) tuple_index=4 ;;
+                13) tuple_index=7 ;;
+            esac
+            ;;
+        4|5|6|7)
+            decoded=$(decode_eth_call_json \
+                "$POREP_MARKET" \
+                "getDealSLIs(uint256)" \
+                "getDealSLIs(uint256)((uint16,uint64,uint16,uint8))" \
+                "$deal_id")
+            case "$field" in
+                4) tuple_index=0 ;;
+                5) tuple_index=1 ;;
+                6) tuple_index=2 ;;
+                7) tuple_index=3 ;;
+            esac
+            ;;
+        8|10)
+            decoded=$(decode_eth_call_json \
+                "$POREP_MARKET" \
+                "getDealTerms(uint256)" \
+                "getDealTerms(uint256)((uint256,uint64))" \
+                "$deal_id")
+            case "$field" in
+                8) tuple_index=0 ;;
+                10) tuple_index=1 ;;
+            esac
+            ;;
+        9)
+            decoded=$(decode_eth_call_json \
+                "$POREP_MARKET" \
+                "getDealPayment(uint256)" \
+                "getDealPayment(uint256)((address,address,uint256,uint256,uint256))" \
+                "$deal_id")
+            tuple_index=2
+            ;;
+        15)
+            decoded=$(decode_eth_call_json \
+                "$POREP_MARKET" \
+                "getDealData(uint256)" \
+                "getDealData(uint256)((bytes32,string))" \
+                "$deal_id")
+            tuple_index=1
+            ;;
         *) echo "ERROR: unsupported deal field index $field" >&2; return 1 ;;
     esac
-    printf '%s\n' "$decoded" | jq -r "$jq_path"
+
+    json_tuple_field "$decoded" "$tuple_index"
 }
 
 fp_balance() {

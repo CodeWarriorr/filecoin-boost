@@ -29,8 +29,7 @@ echo "Sender:    $DEPLOYER"
 # --------------------------
 TX_HASH=$(send_tx_hash \
   "$VALIDATOR" \
-  "createRail(address)" \
-  "$USDC_TOKEN")
+  "createRail()")
 
 wait_for_tx "$TX_HASH"
 

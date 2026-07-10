@@ -15,6 +15,7 @@ echo "============================================================"
 echo "  HAPPY PATH: Full Deal Lifecycle"
 echo "============================================================"
 
+bash "$SETUP/04_register_miner.sh"
 bash "$SETUP/06_prepare_operator.sh"
 GENERATE_PIECE=1 bash "$SETUP/07_generate_piece.sh"
 

@@ -24,6 +24,18 @@ echo "Market: $POREP_MARKET"
 echo "Sender: $DEPLOYER"
 echo "DealId: $DEAL_ID"
 
+DEAL_STATE=$(decode_eth_call_json \
+  "$POREP_MARKET" \
+  "getDeal(uint256)" \
+  "getDeal(uint256)((uint256,address,uint64,uint256,uint8,address,address,uint256))" \
+  "$DEAL_ID")
+DEAL_STATE=$(json_tuple_field "$DEAL_STATE" 4)
+
+if [ "$DEAL_STATE" = "20" ]; then
+  echo "Deal already accepted."
+  exit 0
+fi
+
 # --------------------------
 # SEND TRANSACTION
 # --------------------------

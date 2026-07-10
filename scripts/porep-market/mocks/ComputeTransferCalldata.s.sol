@@ -8,20 +8,19 @@ import {FilAddresses} from "filecoin-solidity/v0.8/utils/FilAddresses.sol";
 import {BigInts} from "filecoin-solidity/v0.8/utils/BigInts.sol";
 import {CBOR} from "solidity-cborutils/contracts/CBOR.sol";
 import {FilecoinCBOR} from "filecoin-solidity/v0.8/cbor/FilecoinCbor.sol";
-import {Client} from "src/Client.sol";
+import {IDataCapEvidenceAdapter} from "src/interfaces/IDataCapEvidenceAdapter.sol";
 
-/// @notice Forge script that computes ABI-encoded calldata for Client.transfer().
+/// @notice Forge script that computes ABI-encoded calldata for DataCapEvidenceAdapter.submitDataCapBatch().
 /// Usage:
 ///   PROVIDER=1000 PIECE_SIZE=2048 DEAL_ID=1 \
 ///     forge script script/ComputeTransferCalldata.s.sol --rpc-url $RPC_URL -vvvv 2>&1 | grep CALLDATA
 ///
-/// Then call: cast send $CLIENT_CONTRACT --data $CALLDATA --rpc-url $RPC_URL --private-key $KEY
+/// Then call: cast send $DATACAP_EVIDENCE_ADAPTER --data $CALLDATA --rpc-url $RPC_URL --private-key $KEY
 contract ComputeTransferCalldata is Script {
     function run() external view {
         uint64 provider = uint64(vm.envOr("PROVIDER", uint256(1000)));
         uint64 pieceSize = uint64(vm.envOr("PIECE_SIZE", uint256(2048)));
         uint256 dealId = vm.envOr("DEAL_ID", uint256(1));
-        bool dealCompleted = vm.envOr("DEAL_COMPLETED", true);
 
         // PIECE_CID_HEX: raw CIDv1 bytes for the piece. Defaults to the devnet sample CAR CommP.
         bytes memory pieceCid = vm.envOr(
@@ -37,7 +36,7 @@ contract ComputeTransferCalldata is Script {
             operator_data: operatorData
         });
 
-        bytes memory callData = abi.encodeCall(Client.transfer, (params, dealId, dealCompleted));
+        bytes memory callData = abi.encodeCall(IDataCapEvidenceAdapter.submitDataCapBatch, (params, dealId));
 
         console.log("CALLDATA=%s", vm.toString(callData));
         console.log("OPERATOR_DATA=%s", vm.toString(operatorData));
