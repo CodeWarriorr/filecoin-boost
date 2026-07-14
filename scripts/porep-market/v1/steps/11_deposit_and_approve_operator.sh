@@ -2,6 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_common.sh"
+require_devnet
 require_env PRIVATE_KEY_TEST FILECOIN_PAY USDC_TOKEN VALIDATOR_FACTORY
 
 state_load

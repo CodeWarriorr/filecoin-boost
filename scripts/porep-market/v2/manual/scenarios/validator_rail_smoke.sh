@@ -15,7 +15,7 @@ echo "State: $STATE_FILE"
 bash "$SETUP/04_register_provider_and_offer.sh"
 bash "$STEPS/07_propose_deal.sh"
 bash "$STEPS/10_deploy_validator.sh"
-bash "$STEPS/11_deposit_and_approve_operator.sh" "${V2_DEPOSIT_AMOUNT:-1000}"
+bash "$STEPS/11_deposit_and_approve_operator.sh" "$(default_v2_deposit_amount)"
 bash "$STEPS/12_create_rail.sh"
 
 state_require DEAL_ID VALIDATOR RAIL_ID
