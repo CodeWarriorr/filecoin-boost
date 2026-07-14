@@ -47,7 +47,11 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 COPY . .
 
-RUN git submodule update --init
+RUN if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+      git submodule update --init; \
+    else \
+      test -f extern/filecoin-ffi/go.mod; \
+    fi
 
 ### make configurable filecoin-ffi build
 ARG FFI_BUILD_FROM_SOURCE=0
@@ -55,7 +59,10 @@ ENV FFI_BUILD_FROM_SOURCE=${FFI_BUILD_FROM_SOURCE}
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    make clean deps
+    make clean && \
+    mkdir -p build && \
+    touch build/.update-modules && \
+    make deps
 
 COPY --from=react-builder /src/react/build /go/src/react/build
 
