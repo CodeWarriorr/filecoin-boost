@@ -1,4 +1,5 @@
 docker/devnet/data
+scripts/porep-market
 react/node_modules
 # filecoin-ffi installation
 build/.filecoin-install
