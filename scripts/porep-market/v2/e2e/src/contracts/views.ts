@@ -1,6 +1,6 @@
 import type { Result } from "ethers";
 import type { ScenarioContext } from "../runtime.js";
-import { Evm, firstUint } from "./evm.js";
+import { Evm, firstUint, retryTransientRead } from "./evm.js";
 import { artifactAbis, type ContractAbis } from "./abi.js";
 
 export type Deal = {
@@ -62,7 +62,10 @@ export class ContractViews {
   }
 
   async providerRegistered(provider: bigint): Promise<boolean> {
-    return Boolean(await this.evm.contract(this.context.config.addresses.spRegistry, this.abi.spRegistry).isProviderRegistered(provider));
+    return await retryTransientRead(
+      async () => Boolean(await this.evm.contract(this.context.config.addresses.spRegistry, this.abi.spRegistry).isProviderRegistered(provider)),
+      async () => await this.waitForNextBlock()
+    );
   }
 
   async providerOfferIds(provider: bigint): Promise<bigint[]> {
@@ -177,9 +180,18 @@ export class ContractViews {
   }
 
   async operatorApproved(owner: string, operator: string): Promise<boolean> {
-    const value = await this.evm.contract(this.context.config.addresses.filecoinPay, this.abi.filecoinPay)
-      .operatorApprovals(this.context.config.addresses.usdcToken, owner, operator) as Result;
-    return Boolean(value[0]);
+    return await retryTransientRead(
+      async () => {
+        const value = await this.evm.contract(this.context.config.addresses.filecoinPay, this.abi.filecoinPay)
+          .operatorApprovals(this.context.config.addresses.usdcToken, owner, operator) as Result;
+        return Boolean(value[0]);
+      },
+      async () => await this.waitForNextBlock()
+    );
+  }
+
+  private async waitForNextBlock(): Promise<void> {
+    await this.evm.waitForBlock(this.evm.blockNumber() + 1n);
   }
 
   async allocationIds(dealId: bigint): Promise<bigint[]> {

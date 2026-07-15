@@ -5,7 +5,7 @@ import {
   assertExpectedChainId,
   assertPreflightReady,
   buildPreflightSummary,
-  filterPorepSourceChanges,
+  parsePorepSourceChanges,
   readDeploymentRecord,
   type ContractCheck,
   type PreflightFacts
@@ -49,7 +49,7 @@ function collectPreflightFacts(config: E2EConfig, runDir: string): PreflightFact
     porepBranch: runRequired("git", ["-C", porepSourceDir, "rev-parse", "--abbrev-ref", "HEAD"]),
     porepCommit: runRequired("git", ["-C", porepSourceDir, "rev-parse", "HEAD"]),
     expectedPorepCommit: config.expectedPorepCommit ?? "803942a5f439e0a588da245727197ca22546bb1f",
-    porepDirty: filterPorepSourceChanges(porepStatus.stdout.trim().split("\n").filter(Boolean)),
+    porepDirty: parsePorepSourceChanges(porepStatus.stdout),
     deploymentRecordPath,
     deploymentRecordStatus: deploymentRecord.status,
     deploymentRecordChainId: deploymentRecord.chainId,

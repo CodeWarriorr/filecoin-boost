@@ -7,6 +7,7 @@ import {
   assertPreflightReady,
   buildPreflightSummary,
   filterPorepSourceChanges,
+  parsePorepSourceChanges,
   readDeploymentRecord,
   type ContractCheck,
   type PreflightFacts
@@ -179,6 +180,10 @@ test("generated devnet deployment JSON is excluded from PoRep source dirtiness",
     "?? deployments/devnet/run-1.json",
     " M src/PoRepMarket.sol"
   ]), [" M src/PoRepMarket.sol"]);
+});
+
+test("generated deployment JSON stays excluded when it is the first status line", () => {
+  assert.deepEqual(parsePorepSourceChanges(" M deployments/devnet/latest.json\n?? deployments/devnet/run-1.json\n"), []);
 });
 
 test("USDC requires code and ABI but no PoRep deployment entry", () => {

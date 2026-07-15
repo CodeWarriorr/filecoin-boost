@@ -91,6 +91,52 @@ export class Evm {
     return new Wallet(privateKey).address;
   }
 
+  async ensureEvmActor(privateKey: string): Promise<void> {
+    const address = this.addressForPrivateKey(privateKey);
+    const probeArgs = [
+      "call",
+      "--rpc-url",
+      this.context.config.rpcUrl,
+      "--from",
+      address,
+      this.context.config.addresses.usdcToken,
+      "balanceOf(address)(uint256)",
+      address
+    ];
+    const probe = run("cast", probeArgs, this.context.boostRoot);
+    if (probe.status === 0) return;
+
+    const output = probe.stderr || probe.stdout;
+    if (!isActorResolutionError(output)) {
+      throw new Error(`${probe.command} failed with ${probe.status}\n${redact(output)}`);
+    }
+
+    console.log(`  Creating Filecoin actor mapping for ${address}`);
+    const funding = run("cast", [
+      "send",
+      "--gas-limit",
+      "9000000000",
+      "--rpc-url",
+      this.context.config.rpcUrl,
+      "--private-key",
+      this.context.config.privateKeyTest,
+      "--value",
+      "1wei",
+      address,
+      "--json"
+    ], this.context.boostRoot);
+    const txHash = extractTxHash(funding.stdout);
+    if (funding.status !== 0 || !txHash) {
+      throw new Error(`${funding.command} failed with ${funding.status}\n${redact(funding.stderr || funding.stdout)}`);
+    }
+    await this.waitForTx(txHash);
+
+    const verified = run("cast", probeArgs, this.context.boostRoot);
+    if (verified.status !== 0) {
+      throw new Error(`${verified.command} failed with ${verified.status}\n${redact(verified.stderr || verified.stdout)}`);
+    }
+  }
+
   async waitForTx(txHash: string): Promise<TxReceipt> {
     for (let attempt = 1; attempt <= 60; attempt++) {
       const result = run("cast", ["receipt", "--rpc-url", this.context.config.rpcUrl, txHash, "--json"], this.context.boostRoot);
@@ -185,6 +231,26 @@ export function extractRevertData(output: string): string | undefined {
     if (data && data.length % 2 === 0) return data;
   }
   return undefined;
+}
+
+export function isActorResolutionError(output: string): boolean {
+  return /resolve address .*actor not found/i.test(output);
+}
+
+export async function retryTransientRead<T>(read: () => Promise<T>, waitForNextBlock: () => Promise<void>): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    if (!isTransientReadError(error)) throw error;
+    await waitForNextBlock();
+    return await read();
+  }
+}
+
+function isTransientReadError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const rpcError = error as Error & { code?: string; data?: unknown };
+  return rpcError.code === "CALL_EXCEPTION" && rpcError.data == null && /missing revert data/i.test(rpcError.message);
 }
 
 function jsonFromOutput(output: string): string | undefined {

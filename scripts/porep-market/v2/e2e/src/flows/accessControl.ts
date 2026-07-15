@@ -15,6 +15,7 @@ export async function expectUnauthorizedSettlementCadenceUpdateToFail(
   const evm = new Evm(context);
   const view = contracts(context);
   const caller = evm.addressForPrivateKey(context.config.privateKeySp);
+  await evm.ensureEvmActor(context.config.privateKeySp);
   const before = await view.dealService(accepted.dealId);
 
   console.log("=== Expect unauthorized settlement cadence update to fail ===");
@@ -46,6 +47,7 @@ export async function expectUnauthorizedSliUpdateToFail(
   const evm = new Evm(context);
   const view = contracts(context);
   const caller = evm.addressForPrivateKey(context.config.privateKeySp);
+  await evm.ensureEvmActor(context.config.privateKeySp);
   const before = await view.sliAttestation(accepted.dealId);
 
   console.log("=== Expect unauthorized SLI update to fail ===");
@@ -81,6 +83,7 @@ export async function expectUnauthorizedEvidenceRefreshToFail(
   const evm = new Evm(context);
   const view = contracts(context);
   const caller = evm.addressForPrivateKey(context.config.privateKeySp);
+  await evm.ensureEvmActor(context.config.privateKeySp);
   const before = await view.evidenceStatus(accepted.dealId);
   const evidenceData = evm.abiEncode("f(uint256)", 1n);
 

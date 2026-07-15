@@ -135,6 +135,10 @@ export function filterPorepSourceChanges(statusLines: string[]): string[] {
   });
 }
 
+export function parsePorepSourceChanges(status: string): string[] {
+  return filterPorepSourceChanges(status.split("\n").filter(Boolean));
+}
+
 function formatRecord<T>(record: Record<string, T>, format: (value: T) => string, separator = "="): string {
   return Object.entries(record)
     .sort(([left], [right]) => left.localeCompare(right))

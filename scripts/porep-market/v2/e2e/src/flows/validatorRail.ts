@@ -54,9 +54,12 @@ export async function depositAndApproveValidatorOperator(
   const depositAmountHuman = defaultDepositAmountHuman(context);
   const permit = await signDepositPermit(context, context.config.addresses.filecoinPay, depositAmountHuman);
   const balance = await view.tokenBalance(evm.signerAddress);
+  const missing = missingTokenAmount(balance, permit.amount);
 
-  if (balance < permit.amount) {
-    throw new Error(`insufficient USDC - need ${permit.amount}, have ${balance}`);
+  if (missing > 0n) {
+    console.log(`  Minting ${missing} MockUSDC needed for this deposit`);
+    await evm.send(context.config.addresses.usdcToken, "mint(address,uint256)", [evm.signerAddress, missing]);
+    assertEqual(await view.tokenBalance(evm.signerAddress) >= permit.amount, true, "USDC balance after top-up");
   }
 
   console.log("Depositing and approving V2 validator operator...");
@@ -88,6 +91,10 @@ export async function depositAndApproveValidatorOperator(
   console.log(`TX: ${txHash}`);
   console.log(`Operator approved: ${validator.validator}`);
   return { txHash, depositAmount: permit.amount };
+}
+
+export function missingTokenAmount(balance: bigint, required: bigint): bigint {
+  return balance < required ? required - balance : 0n;
 }
 
 export async function createPreparedRailAndAssertRate(
