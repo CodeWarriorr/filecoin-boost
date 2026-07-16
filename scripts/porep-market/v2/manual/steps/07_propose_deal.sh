@@ -29,7 +29,7 @@ echo "TX: $TX_HASH"
 wait_for_tx "$TX_HASH"
 
 RECEIPT=$(receipt_json "$TX_HASH")
-EVENT_SIG=$(cast keccak "DealCreated(uint256,address,uint64,(uint16,uint64,uint16,uint8),string,uint256,uint256)")
+EVENT_SIG=$(cast keccak "DealCreated(uint256,address,uint64,(uint16,uint64,uint16,uint8),bytes32,string,uint256,uint256)")
 
 DEAL_ID=$(echo "$RECEIPT" | jq -r --arg sig "$EVENT_SIG" '
 .logs[]
@@ -70,7 +70,7 @@ ACTUAL_LATENCY_MS=$(printf '%s\n' "$SLIS_JSON" | jq -r '.[0][2]')
 ACTUAL_INDEXING_PCT=$(printf '%s\n' "$SLIS_JSON" | jq -r '.[0][3]')
 EXPECTED_DURATION_EPOCHS=$((DURATION_DAYS * 2880))
 
-[ "$OFFER_ID" = "0" ] || { echo "ERROR: current V2 main should store offerId 0, got $OFFER_ID"; exit 1; }
+[ "$OFFER_ID" != "0" ] || { echo "ERROR: V2 deal $DEAL_ID did not freeze a provider offer id"; exit 1; }
 [ "$(lower_hex "$ACTUAL_MANIFEST_HASH")" = "$(lower_hex "$MANIFEST_HASH")" ] || { echo "ERROR: manifestHash mismatch"; exit 1; }
 [ "$ACTUAL_MANIFEST_LOCATION" = "$MANIFEST_LOCATION" ] || { echo "ERROR: manifestLocation mismatch"; exit 1; }
 [ "$ACTUAL_SIZE_BYTES" = "$REQUESTED_SIZE_BYTES" ] || { echo "ERROR: requestedSizeBytes mismatch"; exit 1; }
@@ -88,10 +88,14 @@ EXPECTED_PROVIDER="$(state_get PROVIDER || true)"
 if [ -n "$EXPECTED_PROVIDER" ]; then
     [ "$PROVIDER" = "$EXPECTED_PROVIDER" ] || { echo "ERROR: provider expected $EXPECTED_PROVIDER, got $PROVIDER"; exit 1; }
 fi
+EXPECTED_OFFER_ID="$(state_get OFFER_ID || true)"
+if [ -n "$EXPECTED_OFFER_ID" ]; then
+    [ "$OFFER_ID" = "$EXPECTED_OFFER_ID" ] || { echo "ERROR: offer expected $EXPECTED_OFFER_ID, got $OFFER_ID"; exit 1; }
+fi
 
 echo "DealCreated event caught, dealId = $DEAL_ID"
 echo "provider: $PROVIDER"
-echo "offerId: 0 (current main has no offer API)"
+echo "offerId: $OFFER_ID"
 echo "state: 20 (ACCEPTED)"
 echo "dealData: $DATA_JSON"
 echo "terms: $TERMS_JSON"

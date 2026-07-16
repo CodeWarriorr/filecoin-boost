@@ -2,17 +2,16 @@
 _COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POREP_MARKET_ROOT="$(cd "$_COMMON_DIR/.." && pwd)"
 SCRIPT_DIR="${SCRIPT_DIR:-$POREP_MARKET_ROOT}"
-ENV_FILE="$POREP_MARKET_ROOT/.env"
 POREP_MARKET_VERSION="${POREP_MARKET_VERSION:-v2}"
-POREP_MARKET_V1_BRANCH="${POREP_MARKET_V1_BRANCH:-v1}"
-POREP_MARKET_V2_BRANCH="${POREP_MARKET_V2_BRANCH:-main}"
+ENV_FILE="${POREP_MARKET_ENV_FILE:-$POREP_MARKET_ROOT/.env.$POREP_MARKET_VERSION}"
+ENV_EXAMPLE_FILE="${ENV_EXAMPLE_FILE:-$POREP_MARKET_ROOT/env.$POREP_MARKET_VERSION.example}"
 METAALLOC_DIR="$POREP_MARKET_ROOT/contract-metaallocator"
 POREP_TOOLING_DIR="$POREP_MARKET_ROOT/filecoin-porep-market-tooling"
 
 default_porep_dir() {
     case "${1:-$POREP_MARKET_VERSION}" in
-        v1) echo "$POREP_MARKET_ROOT/porep-market-v1" ;;
-        v2) echo "$POREP_MARKET_ROOT/porep-market-v2" ;;
+        v1) echo "$POREP_MARKET_ROOT/porep-market-v1-${POREP_MARKET_V1_REF:0:12}" ;;
+        v2) echo "$POREP_MARKET_ROOT/porep-market-v2-${POREP_MARKET_V2_REF:0:12}" ;;
         *) echo "$POREP_MARKET_ROOT/porep-market-${1:-$POREP_MARKET_VERSION}" ;;
     esac
 }
@@ -25,6 +24,9 @@ _safe_source_kvfile() {
         val="${val##[[:space:]]}"
         [[ "$key" =~ ^[A-Za-z_][A-Za-z_0-9]*$ ]] || continue
         [ -n "$key" ] || continue
+        if [ -n "${!key:-}" ]; then
+            continue
+        fi
         export "$key=$val"
     done < "$file"
 }
@@ -41,8 +43,10 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 POREP_MARKET_VERSION="${POREP_MARKET_VERSION:-v2}"
-POREP_MARKET_V1_BRANCH="${POREP_MARKET_V1_BRANCH:-v1}"
-POREP_MARKET_V2_BRANCH="${POREP_MARKET_V2_BRANCH:-main}"
+POREP_MARKET_V1_REF="${POREP_MARKET_V1_REF:-62754c6ceafe0e9f6eae926297633029c95d2589}"
+POREP_MARKET_V2_REF="${POREP_MARKET_V2_REF:-803942a5f439e0a588da245727197ca22546bb1f}"
+FILECOIN_PAY_REF="${FILECOIN_PAY_REF:-755ca20054dae88e9e28dc569e696e822c59907f}"
+METAALLOCATOR_REF="${METAALLOCATOR_REF:-41811a8bd6478ffbce4db47720fd9ac521b9e048}"
 POREP_MARKET_DIR="${POREP_MARKET_DIR:-}"
 POREP_DIR="${POREP_MARKET_DIR:-$(default_porep_dir "$POREP_MARKET_VERSION")}"
 
@@ -58,7 +62,16 @@ require_env() {
 }
 
 require_devnet() {
-    docker exec lotus lotus chain head &>/dev/null || { echo "ERROR: Devnet not running (make devnet/up)"; exit 1; }
+    local chain_id
+    docker exec lotus lotus chain head &>/dev/null || {
+        echo "ERROR: Devnet not running (make devnet/up)" >&2
+        return 1
+    }
+    chain_id=$(cast chain-id --rpc-url "$RPC_URL" 2>/dev/null || true)
+    [ "$chain_id" = "31415926" ] || {
+        echo "ERROR: expected chain ID 31415926, got ${chain_id:-unavailable}" >&2
+        return 1
+    }
 }
 
 require_porep() {
@@ -69,22 +82,92 @@ lower_hex() {
     printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-resolve_porep_market_branch() {
+resolve_porep_market_ref() {
     case "${1:-$POREP_MARKET_VERSION}" in
-        v1) echo "${POREP_MARKET_BRANCH:-$POREP_MARKET_V1_BRANCH}" ;;
-        v2) echo "${POREP_MARKET_BRANCH:-$POREP_MARKET_V2_BRANCH}" ;;
+        v1) echo "$POREP_MARKET_V1_REF" ;;
+        v2) echo "$POREP_MARKET_V2_REF" ;;
         *) echo "ERROR: unsupported POREP_MARKET_VERSION=${1:-$POREP_MARKET_VERSION}" >&2; return 1 ;;
     esac
 }
 
 update_env() {
     local key="$1" val="$2"
-    [ -f "$ENV_FILE" ] || cp "$POREP_MARKET_ROOT/env.example" "$ENV_FILE"
+    [ -f "$ENV_FILE" ] || cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
     if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
         _sed_i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
     else
         echo "${key}=${val}" >> "$ENV_FILE"
     fi
+}
+
+_porep_source_changes() {
+    git -C "$1" status --porcelain --untracked-files=all -- . ':(exclude)deployments/devnet/*.json' \
+        | awk '$0 != "?? foundry.lock"'
+}
+
+require_pinned_repo() {
+    local label="$1" directory="$2" ref="$3"
+    local current expected source_changes
+
+    git -C "$directory" rev-parse --is-inside-work-tree &>/dev/null || {
+        echo "ERROR: $label directory is not a git checkout: $directory" >&2
+        return 1
+    }
+
+    source_changes=$(_porep_source_changes "$directory")
+    if [ -n "$source_changes" ]; then
+        echo "ERROR: $label checkout has source-bearing local changes: $directory" >&2
+        printf '%s\n' "$source_changes" >&2
+        return 1
+    fi
+
+    current=$(git -C "$directory" rev-parse HEAD)
+    expected=$(git -C "$directory" rev-parse "${ref}^{commit}" 2>/dev/null) || {
+        echo "ERROR: $label expected ref is not available in checkout: $ref" >&2
+        return 1
+    }
+    if [ "$current" != "$expected" ]; then
+        echo "ERROR: $label checkout has HEAD $current; expected $ref ($expected): $directory" >&2
+        return 1
+    fi
+}
+
+checkout_pinned_repo() {
+    local label="$1" repo_url="$2" directory="$3" ref="$4"
+    local current source_changes cloned=false
+
+    if [ ! -e "$directory" ]; then
+        echo "Cloning $label at $ref..."
+        git clone "$repo_url" "$directory"
+        cloned=true
+    fi
+
+    git -C "$directory" rev-parse --is-inside-work-tree &>/dev/null || {
+        echo "ERROR: $label directory is not a git checkout: $directory" >&2
+        return 1
+    }
+
+    source_changes=$(_porep_source_changes "$directory")
+    if [ -n "$source_changes" ]; then
+        echo "ERROR: $label checkout has source-bearing local changes: $directory" >&2
+        printf '%s\n' "$source_changes" >&2
+        return 1
+    fi
+
+    current=$(git -C "$directory" rev-parse HEAD)
+    if [ "$current" = "$ref" ]; then
+        if [ "$cloned" = true ]; then
+            git -C "$directory" checkout --detach "$ref"
+        fi
+        require_pinned_repo "$label" "$directory" "$ref"
+        echo "$label already at $ref"
+        return 0
+    fi
+
+    echo "Updating $label to $ref..."
+    git -C "$directory" fetch origin "$ref"
+    git -C "$directory" checkout --detach "$ref"
+    require_pinned_repo "$label" "$directory" "$ref"
 }
 
 wait_for_tx() {
@@ -128,7 +211,7 @@ wait_for_block() {
 }
 
 # --- State file management ---
-STATE_FILE="${STATE_FILE:-$POREP_MARKET_ROOT/.state}"
+STATE_FILE="${STATE_FILE:-$POREP_MARKET_ROOT/.state.$POREP_MARKET_VERSION}"
 
 state_set() {
     local key="$1" val="$2"
@@ -216,6 +299,7 @@ extract_status() {
 }
 
 send_tx_output() {
+    require_devnet || return 1
     local key="${SENDER_KEY:-$PRIVATE_KEY_TEST}"
     local stderr_tmp
     stderr_tmp=$(mktemp)
@@ -382,6 +466,15 @@ get_v2_deal_slis_json() {
         "$POREP_MARKET" \
         "getDealSLIs(uint256)" \
         "getDealSLIs(uint256)((uint16,uint64,uint16,uint8))" \
+        "$deal_id"
+}
+
+get_v2_deal_service_json() {
+    local deal_id="$1"
+    decode_eth_call_json \
+        "$POREP_MARKET" \
+        "getDealService(uint256)" \
+        "getDealService(uint256)((int64,int64,int64,uint256,int64))" \
         "$deal_id"
 }
 

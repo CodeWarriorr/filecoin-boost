@@ -148,7 +148,43 @@ if [ ! -f $BOOST_PATH/.init.boost ]; then
 fi
 
 ## run boostd-data for yugabytedb
-boostd-data -vv run yugabyte --hosts yugabytedb --connect-string="postgresql://yugabyte:yugabyte@yugabytedb:5433?sslmode=disable" --addr 0.0.0.0:8044 &>$BOOSTD_DATA_PATH/boostd-data-yugabyte.log &
+BOOSTD_DATA_LOG="$BOOSTD_DATA_PATH/boostd-data-yugabyte.log"
+BOOSTD_DATA_PID=""
+
+start_boostd_data() {
+	for attempt in 1 2 3 4 5; do
+		echo "Starting boostd-data yugabyte service (attempt ${attempt})..."
+		rm -f "$BOOSTD_DATA_LOG"
+		boostd-data -vv run yugabyte --hosts yugabytedb --connect-string="postgresql://yugabyte:yugabyte@yugabytedb:5433?sslmode=disable" --addr 0.0.0.0:8044 &>"$BOOSTD_DATA_LOG" &
+		BOOSTD_DATA_PID="$!"
+
+		for _ in $(seq 1 30); do
+			if curl -s --max-time 2 http://localhost:8044 >/dev/null 2>&1; then
+				echo "boostd-data yugabyte service is ready"
+				return 0
+			fi
+
+			if ! kill -0 "$BOOSTD_DATA_PID" 2>/dev/null; then
+				echo "boostd-data exited before becoming ready"
+				tail -80 "$BOOSTD_DATA_LOG" || true
+				break
+			fi
+
+			sleep 1
+		done
+
+		echo "boostd-data was not ready on attempt ${attempt}"
+		tail -80 "$BOOSTD_DATA_LOG" || true
+		kill -15 "$BOOSTD_DATA_PID" 2>/dev/null || true
+		wait "$BOOSTD_DATA_PID" 2>/dev/null || true
+		sleep 5
+	done
+
+	echo "boostd-data did not become ready"
+	return 1
+}
+
+start_boostd_data
 
 # TODO(anteva): fixme: hack as boostd fails to start without this dir
 mkdir -p $BOOST_PATH/deal-staging
@@ -160,7 +196,27 @@ if [ ! -f $BOOST_PATH/.register.boost ]; then
 	BOOST_PID=`echo $!`
 	echo Got boost PID = $BOOST_PID
 
-	until cat $BOOST_PATH/boostd.log | grep maddr; do echo "Waiting for boost..."; sleep 1; done
+	for _ in $(seq 1 60); do
+		if grep -q maddr "$BOOST_PATH/boostd.log"; then
+			break
+		fi
+
+		if ! kill -0 "$BOOST_PID" 2>/dev/null; then
+			echo "Temporary boost exited before printing maddr"
+			tail -120 "$BOOST_PATH/boostd.log" || true
+			exit 1
+		fi
+		echo "Waiting for boost..."
+		sleep 1
+	done
+
+	if ! grep -q maddr "$BOOST_PATH/boostd.log"; then
+		echo "Temporary boost did not print maddr within 60 seconds"
+		tail -120 "$BOOST_PATH/boostd.log" || true
+		kill -15 "$BOOST_PID" 2>/dev/null || true
+		wait "$BOOST_PID" 2>/dev/null || true
+		exit 1
+	fi
 	echo Looks like boost started and initialized...
 
 	echo Registering to lotus-miner...

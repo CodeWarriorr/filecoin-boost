@@ -5,16 +5,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_common.sh"
 
 require_devnet
-require_env PRIVATE_KEY_TEST USDC_TOKEN POREP_MARKET
+require_env PRIVATE_KEY_TEST POREP_MARKET
 
 state_load
 state_require DEAL_ID VALIDATOR
 
 echo "Creating V2 prepared rail..."
 echo "Validator: $VALIDATOR"
-echo "Token:     $USDC_TOKEN"
 
-TX_HASH=$(send_tx_hash "$VALIDATOR" "createRail(address)" "$USDC_TOKEN")
+TX_HASH=$(send_tx_hash "$VALIDATOR" "createRail()")
 wait_for_tx "$TX_HASH"
 
 RAIL_ID=$(get_v2_deal_field "$DEAL_ID" 7)
